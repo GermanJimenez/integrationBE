@@ -10,6 +10,7 @@ export default function EditProfilePage() {
   const [bio, setBio] = useState(CURRENT_USER.bio);
   const [website, setWebsite] = useState(CURRENT_USER.website ?? "");
   const [avatarPreview, setAvatarPreview] = useState(CURRENT_USER.avatar);
+  const [avatarUrl, setAvatarUrl] = useState(CURRENT_USER.avatar);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -19,23 +20,23 @@ export default function EditProfilePage() {
     if (!file) return;
     setAvatarPreview(URL.createObjectURL(file));
 
-    // TODO: Upload the avatar with UploadThing and save the returned URL.
-    // Example:
-    //   const [result] = await uploadFiles("imageUploader", { files: [file] });
-    //   setUploadedAvatarUrl(result.url);
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setAvatarUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
-    // TODO: Replace the URL below with your real backend endpoint.
-    // Also pass `avatarUrl` from UploadThing once you integrate file uploads.
-    // Example: fetch("https://your-api.com/profile", { method: "POST", ... })
     await fetch("/api/profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, bio, website }),
+      body: JSON.stringify({ name, bio, website, avatarUrl }),
     });
 
     setSaved(true);

@@ -124,7 +124,7 @@ const CAPTIONS = [
   "New work in progress… details soon 🔮 #art #creative",
 ];
 
-export let MOCK_POSTS: Post[] = IMAGE_SEEDS.map((seed, i) => ({
+export const MOCK_POSTS: Post[] = IMAGE_SEEDS.map((seed, i) => ({
   id: `post_${i + 1}`,
   author: MOCK_USERS[i % MOCK_USERS.length],
   imageUrl: `https://picsum.photos/seed/${seed}/600/600`,
@@ -166,7 +166,7 @@ const AUDIO_TRACKS = [
   "Escapism — RAYE",
 ];
 
-export let MOCK_REELS: Reel[] = Array.from({ length: 10 }, (_, i) => ({
+export const MOCK_REELS: Reel[] = Array.from({ length: 10 }, (_, i) => ({
   id: `reel_${i + 1}`,
   author: MOCK_USERS[i % MOCK_USERS.length],
   // These are placeholder thumbnail images — real videos would come from UploadThing
@@ -201,7 +201,7 @@ function buildConversation(user: User, messages: { text: string; fromMe: boolean
   };
 }
 
-export let MOCK_CONVERSATIONS: Conversation[] = [
+export const MOCK_CONVERSATIONS: Conversation[] = [
   buildConversation(MOCK_USERS[0], [
     { text: "Hey! Loved your last post 📸", fromMe: false, minsAgo: 60 },
     { text: "Thanks so much! Took ages to edit 😅", fromMe: true, minsAgo: 55 },

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { User, Post } from "@/lib/types";
+import { User, Post, Reel } from "@/lib/types";
 import { CURRENT_USER } from "@/lib/mock-data";
 import Link from "next/link";
 
@@ -10,13 +10,66 @@ export default function ProfilePage() {
   const { username } = useParams<{ username: string }>();
   const [user, setUser] = useState<User | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [reels, setReels] = useState<Reel[]>([]);
+  const [activeTab, setActiveTab] = useState<"posts" | "reels">("posts");
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Change the URL below to your real backend endpoint.
-    // Example: fetch(`https://your-api.com/profile/${username}`)
-
+    setLoading(true);
+    fetch(`/api/profile/${username}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Profile not found");
+        return res.json();
+      })
+      .then((data: { user: User; posts: Post[] }) => {
+        setUser(data.user);
+        setPosts(data.posts);
+      })
+      .finally(() => setLoading(false));
   }, [username]);
+
+  async function handleToggleFollow() {
+    if (!user || followLoading) return;
+    setFollowLoading(true);
+
+    try {
+      const res = await fetch(`/api/profile/${username}/follow`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to follow user");
+      const data: { isFollowing: boolean; followersCount: number } = await res.json();
+      setIsFollowing(data.isFollowing);
+      setUser((prev) => (prev ? { ...prev, followersCount: data.followersCount } : prev));
+    } finally {
+      setFollowLoading(false);
+    }
+  }
+
+  async function handleOpenFollowers() {
+    if (!user) return;
+    const res = await fetch(`/api/profile/${username}/followers`);
+    if (!res.ok) return;
+    const data: { users: User[] } = await res.json();
+    window.alert(`Followers (${data.users.length}): ${data.users.map((u) => u.username).join(", ")}`);
+  }
+
+  async function handleOpenFollowing() {
+    if (!user) return;
+    const res = await fetch(`/api/profile/${username}/following`);
+    if (!res.ok) return;
+    const data: { users: User[] } = await res.json();
+    window.alert(`Following (${data.users.length}): ${data.users.map((u) => u.username).join(", ")}`);
+  }
+
+  async function handleOpenReels() {
+    setActiveTab("reels");
+    if (reels.length > 0) return;
+
+    const res = await fetch(`/api/profile/${username}/reels`);
+    if (!res.ok) return;
+    const data: Reel[] = await res.json();
+    setReels(data);
+  }
 
   if (loading) return <div className="flex justify-center py-20 text-gray-400">Loading profile…</div>;
   if (!user) return <div className="flex justify-center py-20 text-gray-400">User not found.</div>;
@@ -50,9 +103,12 @@ export default function ProfilePage() {
               </Link>
             ) : (
               <>
-                {/* TODO: Wire to POST /api/profile/[username]/follow */}
-                <button className="px-6 py-1.5 text-sm font-semibold bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                  Follow
+                <button
+                  onClick={handleToggleFollow}
+                  disabled={followLoading}
+                  className="px-6 py-1.5 text-sm font-semibold bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-60"
+                >
+                  {isFollowing ? "Following" : "Follow"}
                 </button>
                 <Link href="/messages" className="px-4 py-1.5 text-sm font-semibold bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
                   Message
@@ -66,13 +122,11 @@ export default function ProfilePage() {
               <span className="font-semibold">{user.postsCount.toLocaleString()}</span>
               <span className="text-sm text-gray-500 ml-1">posts</span>
             </div>
-            <button className="hover:opacity-70">
-              {/* TODO: fetch("/api/profile/[username]/followers") */}
+            <button className="hover:opacity-70" onClick={handleOpenFollowers}>
               <span className="font-semibold">{user.followersCount.toLocaleString()}</span>
               <span className="text-sm text-gray-500 ml-1">followers</span>
             </button>
-            <button className="hover:opacity-70">
-              {/* TODO: fetch("/api/profile/[username]/following") */}
+            <button className="hover:opacity-70" onClick={handleOpenFollowing}>
               <span className="font-semibold">{user.followingCount.toLocaleString()}</span>
               <span className="text-sm text-gray-500 ml-1">following</span>
             </button>
@@ -92,14 +146,23 @@ export default function ProfilePage() {
 
       {/* Tabs */}
       <div className="border-t border-gray-200 flex justify-center gap-10 mb-6">
-        <button className="flex items-center gap-1.5 py-3 border-t-2 border-gray-900 text-xs font-semibold uppercase tracking-widest">
+        <button
+          onClick={() => setActiveTab("posts")}
+          className={`flex items-center gap-1.5 py-3 text-xs font-semibold uppercase tracking-widest ${
+            activeTab === "posts" ? "border-t-2 border-gray-900" : "text-gray-400"
+          }`}
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
           </svg>
           Posts
         </button>
-        {/* TODO: fetch(`/api/profile/${username}/reels`) on tab click */}
-        <button className="flex items-center gap-1.5 py-3 text-xs font-semibold uppercase tracking-widest text-gray-400">
+        <button
+          onClick={handleOpenReels}
+          className={`flex items-center gap-1.5 py-3 text-xs font-semibold uppercase tracking-widest ${
+            activeTab === "reels" ? "border-t-2 border-gray-900" : "text-gray-400"
+          }`}
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 9h17.25c1.035 0 1.875.84 1.875 1.875v9.75c0 1.036-.84 1.875-1.875 1.875H3.375A1.875 1.875 0 011.5 20.625v-9.75C1.5 9.839 2.34 9 3.375 9z" />
           </svg>
@@ -115,18 +178,29 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* TODO (students): Render the posts grid here.
-           `posts` is an array of Post objects fetched above.
-           Each post has: id, imageUrl, caption, likesCount, commentsCount, author.
-           Display them in a 3-column grid (use grid grid-cols-3 gap-0.5).
-           Each cell should be aspect-square with the post image filling it.
-           Optionally show a hover overlay with likes/comments counts. */}
-      <div className="flex flex-col items-center gap-3 py-16 text-gray-400">
-        <p className="font-semibold text-lg">Posts grid coming soon</p>
-        <p className="text-sm text-center max-w-xs">
-          Implement the posts grid in <code className="bg-gray-100 px-1 rounded text-gray-600">src/app/profile/[username]/page.tsx</code>
-        </p>
-      </div>
+      {activeTab === "posts" ? (
+        <div className="grid grid-cols-3 gap-0.5">
+          {posts.map((post) => (
+            <article key={post.id} className="group relative aspect-square">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={post.imageUrl} alt={post.caption} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-5 text-white text-sm font-semibold">
+                <span>{post.likesCount.toLocaleString()} likes</span>
+                <span>{post.commentsCount.toLocaleString()} comments</span>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-0.5">
+          {reels.map((reel) => (
+            <article key={reel.id} className="relative aspect-square bg-black">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={reel.thumbnailUrl} alt={reel.caption} className="w-full h-full object-cover" />
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

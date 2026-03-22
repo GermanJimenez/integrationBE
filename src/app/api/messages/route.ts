@@ -9,9 +9,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const body: SendMessagePayload = await req.json();
 
-  if (!body.conversationId || !body.text) {
+  const text = body.text?.trim() ?? "";
+
+  if (!body.conversationId || (!text && !body.mediaUrl)) {
     return NextResponse.json(
-      { error: "conversationId and text are required" },
+      { error: "conversationId and either text or mediaUrl are required" },
       { status: 400 }
     );
   }
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
   const newMessage = {
     id: `msg_${Date.now()}`,
     senderId: CURRENT_USER.id,
-    text: body.text,
+    text,
     mediaUrl: body.mediaUrl,
     createdAt: new Date().toISOString(),
     isRead: false,

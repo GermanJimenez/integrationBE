@@ -5,7 +5,7 @@
 // showing students the exact fetch calls they need to wire up.
 //
 // Copy the relevant function into the component or page where
-// you see a "TODO: Connect to your backend" comment, then call
+// you need backend integration, then call
 // it instead of using the mock data.
 //
 // The mock API routes at /src/app/api/* are already implemented

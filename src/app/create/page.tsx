@@ -9,6 +9,7 @@ export default function CreatePage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("post");
   const [preview, setPreview] = useState<string | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [location, setLocation] = useState("");
   const [audioTrack, setAudioTrack] = useState("");
@@ -19,42 +20,39 @@ export default function CreatePage() {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
     // Show a local preview so the user can see what they picked
     setPreview(URL.createObjectURL(file));
 
-    // TODO: Upload the file to UploadThing here and save the returned URL.
-    // 1. Install: npm install uploadthing @uploadthing/react
-    // 2. Create your file router at /src/app/api/uploadthing/core.ts
-    // 3. Upload and save the URL:
-    //      const [result] = await uploadFiles("imageUploader", { files: [file] });
-    //      setUploadedUrl(result.url);
+    // Use a data URL as a lightweight local upload replacement for this mock backend.
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setUploadedUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!preview) { setError("Please select a file."); return; }
+    if (!preview || !uploadedUrl) { setError("Please select a file."); return; }
 
     setLoading(true);
     setError(null);
 
     try {
       if (tab === "post") {
-        // TODO: Replace `preview` with the real URL returned by UploadThing after upload.
-        // TODO: Change the URL below to your real backend endpoint.
-        // Example: fetch("https://your-api.com/posts", { method: "POST", ... })
         await fetch("/api/posts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl: preview, caption, location }),
+          body: JSON.stringify({ imageUrl: uploadedUrl, caption, location }),
         });
       } else {
-        // TODO: Replace `preview` with the real URL returned by UploadThing after upload.
-        // TODO: Change the URL below to your real backend endpoint.
-        // Example: fetch("https://your-api.com/reels", { method: "POST", ... })
         await fetch("/api/reels", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ videoUrl: preview, thumbnailUrl: preview, caption, audioTrack }),
+          body: JSON.stringify({ videoUrl: uploadedUrl, thumbnailUrl: uploadedUrl, caption, audioTrack }),
         });
       }
 
@@ -108,7 +106,6 @@ export default function CreatePage() {
               <p className="text-xs">
                 {tab === "post" ? "JPEG, PNG, WEBP" : "MP4, MOV"}
               </p>
-              {/* TODO: Replace this area with <UploadDropzone> from @uploadthing/react */}
             </div>
           )}
         </div>

@@ -13,6 +13,9 @@ export default function MessageThread({ initialConversation }: Props) {
   const [messages, setMessages] = useState(initialConversation.messages);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [mediaUrl, setMediaUrl] = useState<string | undefined>(undefined);
+  const [mediaName, setMediaName] = useState<string>("");
+  const fileRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -21,24 +24,50 @@ export default function MessageThread({ initialConversation }: Props) {
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!text.trim() || sending) return;
+    if ((!text.trim() && !mediaUrl) || sending) return;
 
     // Optimistic update — add message locally right away
     const optimistic: DirectMessage = {
       id: `msg_optimistic_${Date.now()}`,
       senderId: CURRENT_USER.id,
       text: text.trim(),
+      mediaUrl,
       createdAt: new Date().toISOString(),
       isRead: false,
     };
     setMessages((prev) => [...prev, optimistic]);
     setText("");
+    setMediaUrl(undefined);
+    setMediaName("");
     setSending(true);
 
-    // TODO: Change the URL below to your real backend endpoint.
-    // Example: fetch("https://your-api.com/messages", { method: "POST", ... })
+    try {
+      await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: initialConversation.id,
+          text: optimistic.text,
+          mediaUrl: optimistic.mediaUrl,
+        }),
+      });
+    } finally {
+      setSending(false);
+    }
+  }
 
-    setSending(false);
+  async function handleMediaChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setMediaUrl(reader.result);
+        setMediaName(file.name);
+      }
+    };
+    reader.readAsDataURL(file);
   }
 
   return (
@@ -70,6 +99,16 @@ export default function MessageThread({ initialConversation }: Props) {
                   }`}
               >
                 <p>{msg.text}</p>
+                {msg.mediaUrl && (
+                  <a
+                    href={msg.mediaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-block mt-1 underline ${isMe ? "text-blue-100" : "text-blue-600"}`}
+                  >
+                    Open attachment
+                  </a>
+                )}
                 <p className={`text-xs mt-1 ${isMe ? "text-blue-100" : "text-gray-400"}`}>
                   {formatDistanceToNow(msg.createdAt)}
                 </p>
@@ -82,19 +121,27 @@ export default function MessageThread({ initialConversation }: Props) {
 
       {/* Input */}
       <form onSubmit={handleSend} className="flex items-center gap-3 px-4 py-3 border-t border-gray-200">
-        {/* TODO: Add a file picker here for media messages.
-            After picking a file, upload it with UploadThing and pass the returned URL
-            as `mediaUrl` in the fetch body above. */}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="text-gray-500 hover:text-gray-700"
+          aria-label="Attach file"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364L14.47 3.914a3 3 0 114.243 4.243L8.558 18.31a1.5 1.5 0 11-2.121-2.12l9.9-9.901" />
+          </svg>
+        </button>
+        <input ref={fileRef} type="file" onChange={handleMediaChange} className="hidden" />
         <input
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Message…"
+          placeholder={mediaName ? `Attached: ${mediaName}` : "Message…"}
           className="flex-1 bg-gray-100 rounded-full px-4 py-2 text-sm outline-none"
         />
         <button
           type="submit"
-          disabled={!text.trim() || sending}
+          disabled={(!text.trim() && !mediaUrl) || sending}
           className="text-sm font-semibold text-blue-500 disabled:opacity-40"
         >
           {sending ? "…" : "Send"}
